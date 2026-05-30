@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'boldonse';
+  src: url(./assets/fonts/bold-fonts/Boldonse/Boldonse-Regular.ttf) format(truetype);
+  font-weight: bold;
+  font-style: italic;
+}
+@theme{
+  --font-boldonse: "boldonse", sans-serif;
+}
+
+@font-face {
+  font-family: "babes";
+  src: url(./assets/fonts/bold-fonts/Montserrat/Montserrat-Italic-VariableFont_wght.ttf) ;
+  font-weight: bold;
+  font-style: italic;
+}
+@theme{
+  --font-babes: "babes", sans-serif;
+}
