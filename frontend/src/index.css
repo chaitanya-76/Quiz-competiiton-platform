@@ -13,9 +13,32 @@
 @font-face {
   font-family: "babes";
   src: url(./assets/fonts/bold-fonts/Montserrat/Montserrat-Italic-VariableFont_wght.ttf) ;
-  font-weight: bold;
   font-style: italic;
 }
 @theme{
   --font-babes: "babes", sans-serif;
+}
+
+@font-face {
+  font-family: "ibm";
+  src: url(./assets/fonts/bold-fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf);
+}
+@theme{
+  --font-ibm: "ibm", sans-serif;
+}
+
+@font-face {
+  font-family: "intel";
+  src: url(./assets/fonts/bold-fonts/Intel_One_Mono/IntelOneMono-Italic-VariableFont_wght.ttf);
+}
+@theme{
+  --font-intel: "intel", sans-serif;
+}
+
+@font-face {
+  font-family: "mont";
+  src: url(./assets/fonts/bold-fonts/Montserrat/Montserrat-Italic-VariableFont_wght.ttf);
+}
+@theme{
+  --font-mont: "mont", sans-serif;
 }
