@@ -197,7 +197,7 @@ export default function Login() {
                     className="border-[0.3vh] h-[5vh] text-[2vh] text-[#ffffff] placeholder-[#888888] bg-[#2a2a2a] border-[#ff6b35] border-opacity-40 w-full px-[2vh] rounded-[0.8vh] focus:outline-none focus:border-[#ff6b35] focus:border-opacity-100 focus:shadow-lg focus:shadow-[rgba(255,107,53,0.3)] transition-all"
                     type="text"
                     placeholder="eg. 0191AL241065"
-                    value={userId.toUpperCase()}
+                    value={userId}
                     onChange={(e) => setUserId(e.target.value)}
                   />
                 </div>
