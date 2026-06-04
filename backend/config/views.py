@@ -92,6 +92,7 @@ class SetupView(APIView):
             password = enrollment_no.strip()[-6:]
 
         enrollment_no = enrollment_no.strip().upper()
+        is_admin = request.data.get("admin", False)
 
         if User.objects.filter(enrollment_no=enrollment_no).exists():
             return Response({
@@ -100,14 +101,25 @@ class SetupView(APIView):
                 "message": f"User {enrollment_no} already exists",
             })
 
-        User.objects.create_user(
-            enrollment_no=enrollment_no,
-            name=name.strip(),
-            year=str(year).strip(),
-            password=password,
-        )
+        if is_admin:
+            user = User.objects.create_superuser(
+                enrollment_no=enrollment_no,
+                name=name.strip(),
+                year=str(year).strip(),
+                password=password,
+            )
+            user.is_admin_user = True
+            user.save(update_fields=["is_admin_user"])
+        else:
+            user = User.objects.create_user(
+                enrollment_no=enrollment_no,
+                name=name.strip(),
+                year=str(year).strip(),
+                password=password,
+            )
 
         result["user_count"] = User.objects.count()
         result["user_created"] = True
         result["enrollment_no"] = enrollment_no
+        result["is_admin"] = bool(is_admin)
         return Response(result)
