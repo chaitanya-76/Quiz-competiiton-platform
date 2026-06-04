@@ -34,7 +34,6 @@ ALLOWED_HOSTS = [
     "*.onrender.com",
     "localhost",
     "127.0.0.1",
-    os.getenv("ALLOWED_HOSTS", "").split(",")
 ]
 
 # Application definition
