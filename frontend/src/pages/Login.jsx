@@ -55,7 +55,7 @@ export default function Login() {
 
   const handleLogin = async () => {
     try {
-      const data = await loginUser(userId, password);
+      const data = await loginUser(userId.trim().toUpperCase(), password);
 
       localStorage.setItem("token", data.access);
       localStorage.setItem("year", data.year);
@@ -69,9 +69,11 @@ export default function Login() {
       }
       console.log(data);
     } catch (error) {
-      alert("Invalid Credentials");
-
-      console.log(error);
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.detail ||
+        "Invalid credentials. Check enrollment number and password.";
+      alert(message);
     }
   };
 
@@ -198,7 +200,8 @@ export default function Login() {
                     type="text"
                     placeholder="eg. 0191AL241065"
                     value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
+                    onChange={(e) => setUserId(e.target.value.toUpperCase())}
+                    style={{ textTransform: "uppercase" }}
                   />
                 </div>
                 <div className="flex flex-col gap-[1vh]">

@@ -19,7 +19,7 @@ class LoginView(APIView):
 
         if serializer.is_valid():
 
-            enrollment_no = serializer.validated_data["enrollment_no"]
+            enrollment_no = serializer.validated_data["enrollment_no"].strip().upper()
             password = serializer.validated_data["password"]
 
             try:

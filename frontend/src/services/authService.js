@@ -8,7 +8,7 @@ export const loginUser = async (
   const response = await api.post(
     "/auth/login/",
     {
-      enrollment_no,
+      enrollment_no: enrollment_no.trim().toUpperCase(),
       password,
     }
   );
