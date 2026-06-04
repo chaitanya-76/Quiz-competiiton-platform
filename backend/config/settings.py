@@ -142,7 +142,7 @@ STATICFILES_STORAGE = (
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://conquer-mind.vercel.app/",
+    "https://conquer-mind.vercel.app",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
