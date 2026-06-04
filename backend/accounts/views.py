@@ -1,6 +1,7 @@
 from .models import User
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -11,6 +12,7 @@ from io import TextIOWrapper
 
 permission_classes = [IsAuthenticated]
 
+@csrf_exempt
 class LoginView(APIView):
 
     def post(self, request):
