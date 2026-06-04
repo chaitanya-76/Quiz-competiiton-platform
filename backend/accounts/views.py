@@ -1,6 +1,7 @@
 from .models import User
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate
+from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,9 +13,9 @@ from io import TextIOWrapper
 
 permission_classes = [IsAuthenticated]
 
-@csrf_exempt
 class LoginView(APIView):
 
+    @method_decorator(csrf_exempt)
     def post(self, request):
 
         serializer = LoginSerializer(data=request.data)
