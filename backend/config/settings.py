@@ -144,6 +144,10 @@ CORS_ALLOWED_ORIGINS = [
     "https://conquer-mind.vercel.app",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://conquer-mind.vercel.app",
+]
+
 AUTH_USER_MODEL = "accounts.User"
 
 REST_FRAMEWORK = {
