@@ -53,6 +53,14 @@ export default function Login() {
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("year");
+    localStorage.removeItem("name");
+    localStorage.removeItem("is_admin_user");
+    localStorage.removeItem("quizAnswers");
+  }, []);
+
   const handleLogin = async () => {
     try {
       const data = await loginUser(userId.trim().toUpperCase(), password);

@@ -7,13 +7,18 @@ const api = axios.create({
   },
 });
 
+const PUBLIC_PATHS = ["/auth/login/"];
+
+const isPublicRequest = (url = "") =>
+  PUBLIC_PATHS.some((path) => url.split("?")[0].endsWith(path));
+
 api.interceptors.request.use((config) => {
   if (config.data instanceof FormData) {
     delete config.headers["Content-Type"];
   }
 
   const token = localStorage.getItem("token");
-  if (token) {
+  if (token && !isPublicRequest(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
