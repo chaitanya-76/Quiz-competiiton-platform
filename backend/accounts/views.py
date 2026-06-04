@@ -1,6 +1,7 @@
 from .models import User
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate
+from django.db import DatabaseError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -21,10 +22,16 @@ class LoginView(APIView):
             enrollment_no = serializer.validated_data["enrollment_no"]
             password = serializer.validated_data["password"]
 
-            user = authenticate(
-                enrollment_no=enrollment_no,
-                password=password
-            )
+            try:
+                user = authenticate(
+                    enrollment_no=enrollment_no,
+                    password=password
+                )
+            except DatabaseError:
+                return Response(
+                    {"error": "Database unavailable. Check migrations and DATABASE_URL."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
 
             if user:
 
