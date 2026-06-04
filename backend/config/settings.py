@@ -91,7 +91,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
     )
 }
 
@@ -140,7 +142,7 @@ STATICFILES_STORAGE = (
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://quiz-frontend.vercel.app",
+    "https://conquer-mind.vercel.app/",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
