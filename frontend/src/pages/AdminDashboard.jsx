@@ -131,22 +131,34 @@ const AdminDashboard = () => {
   };
 
   const handleQuestionImport = async () => {
-    if (!questionFile) return;
+    if (!questionFile) {
+      alert("Please select a CSV file");
+      return;
+    }
 
-    const token = localStorage.getItem("token");
+    try {
+      const token = localStorage.getItem("token");
 
-    const formData = new FormData();
+      const formData = new FormData();
+      formData.append("file", questionFile);
 
-    formData.append("file", questionFile);
+      const response = await api.post("/quiz/bulk-question-import/", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    const response = await api.post("/quiz/bulk-question-import/", formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    setQuestionResult(response.data);
-    await fetchQuestionStats();
+      setQuestionResult(response.data);
+      setQuestionFile(null);
+      await fetchQuestionStats();
+    } catch (error) {
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.detail ||
+        "Failed to import questions. Check your CSV format.";
+      alert(message);
+      console.error(error);
+    }
   };
 
   const handleBulkImport = async () => {
@@ -174,7 +186,12 @@ const AdminDashboard = () => {
       setSelectedFile(null);
       setFileKey(Date.now());
     } catch (error) {
-      console.log(error);
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.detail ||
+        "Failed to import students. Check your CSV format.";
+      alert(message);
+      console.error(error);
     }
   };
 
