@@ -1,5 +1,5 @@
 from .models import User
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -11,11 +11,16 @@ from .serializers import LoginSerializer
 import csv
 from io import TextIOWrapper
 
-permission_classes = [IsAuthenticated]
-
 class LoginView(APIView):
+    permission_classes = [AllowAny]
 
     @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def options(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_200_OK)
+
     def post(self, request):
 
         serializer = LoginSerializer(data=request.data)
