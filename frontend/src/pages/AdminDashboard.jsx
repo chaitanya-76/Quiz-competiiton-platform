@@ -181,8 +181,11 @@ const AdminDashboard = () => {
 
       setImportResult(response.data);
 
-      await Promise.fetchStats();
-      (await Promise.fetchLeaderboard(), setSelectedFile(null));
+      await Promise.all([
+        fetchStats(),
+        fetchLeaderboard(),
+        fetchStudentStats(),
+      ]);
       setSelectedFile(null);
       setFileKey(Date.now());
     } catch (error) {
