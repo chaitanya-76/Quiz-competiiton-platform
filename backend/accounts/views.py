@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import LoginSerializer
+from .serializers import LoginSerializer, ManualCreateUserSerializer
 import csv
 from io import TextIOWrapper
 
@@ -105,6 +105,55 @@ class BulkImportView(APIView):
             "created": created,
             "skipped": skipped
         })
+
+
+class ManualCreateUserView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        if not request.user.is_admin_user:
+            return Response(
+                {"error": "Unauthorized"},
+                status=403
+            )
+
+        serializer = ManualCreateUserSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        enrollment_no = serializer.validated_data["enrollment_no"]
+        name = serializer.validated_data["name"]
+        year = serializer.validated_data["year"]
+
+        if User.objects.filter(enrollment_no=enrollment_no).exists():
+            return Response(
+                {"error": "User with this enrollment number already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        password = enrollment_no[-6:]
+
+        user = User.objects.create_user(
+            enrollment_no=enrollment_no,
+            name=name,
+            year=year,
+            password=password,
+        )
+
+        return Response(
+            {
+                "message": "User created successfully",
+                "enrollment_no": user.enrollment_no,
+                "name": user.name,
+                "year": user.year,
+                "password": password,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class StudentStatsView(APIView):
 

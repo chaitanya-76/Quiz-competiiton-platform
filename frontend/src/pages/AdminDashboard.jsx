@@ -22,6 +22,10 @@ const AdminDashboard = () => {
   const [questionSearch, setQuestionSearch] = useState("");
   const [selectedStudentYear, setSelectedStudentYear] = useState(null);
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualEnrollment, setManualEnrollment] = useState("");
+  const [manualYear, setManualYear] = useState("1");
+  const [manualCreateResult, setManualCreateResult] = useState(null);
 
   const navigate = useNavigate();
 
@@ -156,6 +160,41 @@ const AdminDashboard = () => {
         error.response?.data?.error ||
         error.response?.data?.detail ||
         "Failed to import questions. Check your CSV format.";
+      alert(message);
+      console.error(error);
+    }
+  };
+
+  const handleManualCreate = async () => {
+    if (!manualName.trim() || !manualEnrollment.trim()) {
+      alert("Please enter name and enrollment number");
+      return;
+    }
+
+    try {
+      const response = await api.post("/auth/manual-create/", {
+        name: manualName.trim(),
+        enrollment_no: manualEnrollment.trim().toUpperCase(),
+        year: manualYear,
+      });
+
+      setManualCreateResult(response.data);
+      setManualName("");
+      setManualEnrollment("");
+      setManualYear("1");
+
+      await Promise.all([
+        fetchStats(),
+        fetchLeaderboard(),
+        fetchStudentStats(),
+      ]);
+    } catch (error) {
+      const message =
+        error.response?.data?.error ||
+        Object.values(error.response?.data || {})
+          .flat()
+          .join(" ") ||
+        "Failed to create user.";
       alert(message);
       console.error(error);
     }
@@ -368,6 +407,66 @@ const AdminDashboard = () => {
               Created: {importResult.created} | Skipped: {importResult.skipped}
             </div>
           )}
+
+          <div className="mt-8 pt-6 border-t border-[#333]">
+            <h2 className="text-2xl font-bold mb-4 text-[#ff4000]">
+              Add Student Manually
+            </h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Password is auto-generated from the last 6 digits of the enrollment
+              number.
+            </p>
+
+            <div className="grid grid-cols-1 gap-3 max-w-md">
+              <input
+                type="text"
+                placeholder="Full name"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                className="bg-[#171717] p-3 rounded-lg border border-[#333] focus:border-[#ff4000] outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Enrollment number (e.g. 0191AL241065)"
+                value={manualEnrollment}
+                onChange={(e) => setManualEnrollment(e.target.value.toUpperCase())}
+                style={{ textTransform: "uppercase" }}
+                className="bg-[#171717] p-3 rounded-lg border border-[#333] focus:border-[#ff4000] outline-none"
+              />
+              <select
+                value={manualYear}
+                onChange={(e) => setManualYear(e.target.value)}
+                className="bg-[#171717] p-3 rounded-lg border border-[#333] focus:border-[#ff4000] outline-none cursor-pointer"
+              >
+                <option value="1">First Year</option>
+                <option value="2">Second Year</option>
+                <option value="3">Third Year</option>
+              </select>
+              <button
+                onClick={handleManualCreate}
+                className="bg-[#ff4000] text-black px-5 py-3 rounded-lg font-semibold cursor-pointer w-fit"
+              >
+                Add Student
+              </button>
+            </div>
+
+            {manualCreateResult && (
+              <div className="mt-4 p-4 bg-[#171717] rounded-lg border border-green-600/40 text-green-400 text-sm">
+                <p className="font-semibold text-white mb-2">
+                  {manualCreateResult.message}
+                </p>
+                <p>Name: {manualCreateResult.name}</p>
+                <p>Enrollment: {manualCreateResult.enrollment_no}</p>
+                <p>Year: {manualCreateResult.year}</p>
+                <p className="mt-2 text-[#ff4000] font-bold">
+                  Password: {manualCreateResult.password}
+                </p>
+                <p className="text-gray-400 mt-1">
+                  Share this password with the student for login.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
         <div className="bg-[#0a0a0a] p-5 rounded-xl mb-8 w-1/2">
           <h2 className="text-2xl font-bold text-[#ff4000] mb-5 text-center">

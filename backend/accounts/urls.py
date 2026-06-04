@@ -1,5 +1,11 @@
 from django.urls import path
-from .views import LoginView, BulkImportView, StudentsByYearView, StudentStatsView
+from .views import (
+    LoginView,
+    BulkImportView,
+    ManualCreateUserView,
+    StudentsByYearView,
+    StudentStatsView,
+)
 
 urlpatterns = [
     path(
@@ -8,6 +14,10 @@ urlpatterns = [
     path(
         "bulk-import/",
         BulkImportView.as_view(),
+    ),
+    path(
+        "manual-create/",
+        ManualCreateUserView.as_view(),
     ),
     path(
         "student-stats/",
