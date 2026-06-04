@@ -31,10 +31,14 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-default-key-change-this")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [
-    "*.onrender.com",
     "localhost",
     "127.0.0.1",
+    "conquer-mind.onrender.com",
 ]
+
+_render_host = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+if _render_host:
+    ALLOWED_HOSTS.append(_render_host)
 
 # Application definition
 
@@ -141,6 +145,11 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
     "https://conquer-mind.vercel.app",
+]
+
+# Allow Vercel preview deployments (e.g. conquer-mind-git-main-*.vercel.app)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://[\w-]+\.vercel\.app$",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

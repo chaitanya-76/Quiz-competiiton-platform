@@ -1,5 +1,5 @@
 from .models import User
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -74,11 +74,7 @@ class BulkImportView(APIView):
 
         for row in reader:
 
-            enrollment_no = (
-                serializer.validated_data["enrollment_no"]
-                .strip()
-                .upper()
-            )       
+            enrollment_no = row["enrollment_no"].strip().upper()       
 
             if User.objects.filter(
                 enrollment_no=enrollment_no
