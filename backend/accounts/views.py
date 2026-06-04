@@ -1,8 +1,6 @@
 from .models import User
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,13 +11,6 @@ from io import TextIOWrapper
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
-
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def options(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_200_OK)
 
     def post(self, request):
 
@@ -52,7 +43,7 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        return Response(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class BulkImportView(APIView):
     def post(self, request):
