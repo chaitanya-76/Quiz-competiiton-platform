@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import "remixicon/fonts/remixicon.css";
 
+const QUIZ_DURATION = 60 * 60;
+
 const Quiz = () => {
-  const QUIZ_DURATION = 60 * 60;
-  const [timeLeft, setTimeLeft] = useState(QUIZ_DURATION);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [quizInitialized, setQuizInitialized] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -14,36 +16,169 @@ const Quiz = () => {
   const [showFullscreenModal, setShowFullscreenModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showViolationModal, setShowViolationModal] = useState(false);
+  const [showReloadModal, setShowReloadModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
+  const handleSubmitRef = useRef(null);
+  const autoSubmitTriggeredRef = useRef(false);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmit(true);
-          return 0;
-        }
-
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const recordViolation = useCallback(async () => {
+    try {
+      const response = await api.post("/quiz/record-violation/", {});
+      if (response.data?.violations != null) {
+        setWarnings(response.data.violations);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (isAutoSubmit = false) => {
+      setIsSubmitting(true);
+
+      try {
+        if (Object.keys(answers).length === 0) {
+          if (!isAutoSubmit) {
+            alert("Please answer at least one question before submitting.");
+            setIsSubmitting(false);
+            return;
+          }
+        }
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          alert("Authentication error. Please login again.");
+          navigate("/");
+          return;
+        }
+
+        const formattedAnswers = Object.entries(answers).map(
+          ([questionId, selectedOption]) => ({
+            question_id: Number(questionId),
+            selected_option: selectedOption,
+          }),
+        );
+
+        try {
+          await api.post("/quiz/submit/", { answers: formattedAnswers });
+          localStorage.removeItem("quizAnswers");
+          navigate("/submitted");
+        } catch (error) {
+          if (error.response?.status === 401) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("quizAnswers");
+            alert("Your session has expired. Please login again.");
+            navigate("/");
+            return;
+          }
+          if (
+            error.response?.status === 500 &&
+            error.response?.data?.includes?.("UNIQUE")
+          ) {
+            alert(
+              "You have already submitted this quiz. You cannot submit twice.",
+            );
+            navigate("/dashboard");
+            return;
+          }
+          throw error;
+        }
+      } catch (error) {
+        console.error("Submit error:", error);
+        alert(
+          "Error submitting quiz: " +
+            (error.response?.data?.detail ||
+              error.response?.data?.message ||
+              error.message),
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [answers, navigate],
+  );
+
+  handleSubmitRef.current = handleSubmit;
+
+  const fetchQuestions = async () => {
+    try {
+      const response = await api.get("/quiz/questions/");
+      setQuestions(response.data);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const initQuiz = async () => {
+      try {
+        const statusResponse = await api.get("/quiz/status/");
+
+        if (statusResponse.data.attempted) {
+          navigate("/attempted");
+          return;
+        }
+
+        const remaining = statusResponse.data.seconds_remaining ?? QUIZ_DURATION;
+        setTimeLeft(remaining);
+        setWarnings(statusResponse.data.violations ?? 0);
+
+        if (remaining <= 0) {
+          setLoading(false);
+          handleSubmitRef.current?.(true);
+          return;
+        }
+
+        setQuizInitialized(true);
+        await fetchQuestions();
+      } catch (error) {
+        console.log(error);
+        setLoading(false);
+      }
+    };
+
+    initQuiz();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!quizInitialized) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [quizInitialized]);
+
+  useEffect(() => {
+    if (
+      !quizInitialized ||
+      timeLeft !== 0 ||
+      isSubmitting ||
+      autoSubmitTriggeredRef.current
+    ) {
+      return;
+    }
+
+    autoSubmitTriggeredRef.current = true;
+    handleSubmitRef.current?.(true);
+  }, [timeLeft, quizInitialized, isSubmitting]);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
-      if (isSubmitting) return;
+      if (isSubmitting || showReloadModal) return;
       if (!document.fullscreenElement) {
-        setWarnings((prev) => prev + 1);
         setShowFullscreenModal(true);
         recordViolation();
       } else {
@@ -52,15 +187,13 @@ const Quiz = () => {
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
-  }, [isSubmitting]);
+  }, [isSubmitting, showReloadModal, recordViolation]);
 
   useEffect(() => {
     const savedAnswers = localStorage.getItem("quizAnswers");
-
     if (savedAnswers) {
       setAnswers(JSON.parse(savedAnswers));
     }
@@ -72,58 +205,44 @@ const Quiz = () => {
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.hidden) {
-        setWarnings((prev) => prev + 1);
+      if (document.hidden && !showReloadModal && !isSubmitting) {
         recordViolation();
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, []);
+  }, [showReloadModal, isSubmitting, recordViolation]);
 
   useEffect(() => {
-    if (warnings >= 3) {
+    if (warnings >= 3 && !isSubmitting) {
       setShowViolationModal(true);
-
-      setTimeout(() => {
-        handleSubmit(true);
+      const timeout = setTimeout(() => {
+        handleSubmitRef.current?.(true);
       }, 3000);
+      return () => clearTimeout(timeout);
     }
-  }, [warnings]);
+  }, [warnings, isSubmitting]);
 
   useEffect(() => {
-    window.onbeforeunload = () => true;
+    const handleKeyDown = (e) => {
+      if (isSubmitting) return;
 
-    return () => {
-      window.onbeforeunload = null;
+      const isReloadKey =
+        e.key === "F5" ||
+        (e.key.toLowerCase() === "r" && (e.ctrlKey || e.metaKey));
+
+      if (isReloadKey) {
+        e.preventDefault();
+        setShowReloadModal(true);
+      }
     };
-  }, []);
 
-  const fetchQuestions = async () => {
-    try {
-      const token = localStorage.getItem("token");
-
-      const response = await api.get("/quiz/questions/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setQuestions(response.data);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchQuestions();
-  }, []);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSubmitting]);
 
   useEffect(() => {
     const enterFullscreen = async () => {
@@ -139,44 +258,17 @@ const Quiz = () => {
     enterFullscreen();
   }, []);
 
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const token = localStorage.getItem("token");
-
-        const response = await api.get("/quiz/status/", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.data.attempted) {
-          navigate("/attempted");
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
-    checkStatus();
-  }, []);
-
-  const recordViolation = async () => {
+  const reEnterFullscreen = async () => {
     try {
-      const token = localStorage.getItem("token");
-
-      await api.post(
-        "/quiz/record-violation/",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-    } catch (error) {
-      console.log(error);
+      await document.documentElement.requestFullscreen();
+      setShowFullscreenModal(false);
+    } catch (err) {
+      console.log(err);
     }
+  };
+
+  const handleConfirmReload = () => {
+    window.location.reload();
   };
 
   const handleOptionSelect = (questionId, option) => {
@@ -198,104 +290,9 @@ const Quiz = () => {
     }
   };
 
-  const reEnterFullscreen = async () => {
-    try {
-      await document.documentElement.requestFullscreen();
-      setShowFullscreenModal(false);
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const handleSubmit = async (isAutoSubmit = false) => {
-    setIsSubmitting(true);
-    console.log("Submitting quiz with answers:", answers);
-
-    try {
-      // Check if user answered any questions
-      if (Object.keys(answers).length === 0) {
-        alert("Please answer at least one question before submitting.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      let token = localStorage.getItem("token");
-      console.log("Token:", token);
-
-      if (!token) {
-        console.error("No token found");
-        alert("Authentication error. Please login again.");
-        navigate("/");
-        return;
-      }
-
-      const formattedAnswers = Object.entries(answers).map(
-        ([questionId, selectedOption]) => ({
-          question_id: Number(questionId),
-          selected_option: selectedOption,
-        }),
-      );
-
-      console.log("Formatted answers:", formattedAnswers);
-
-      try {
-        const response = await api.post(
-          "/quiz/submit/",
-          {
-            answers: formattedAnswers,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        console.log("Submit response:", response.data);
-        localStorage.removeItem("quizAnswers");
-        navigate("/submitted");
-      } catch (error) {
-        // If token is invalid/expired, redirect to login
-        if (error.response?.status === 401) {
-          console.error("Token expired or invalid, redirecting to login");
-          localStorage.removeItem("token");
-          localStorage.removeItem("quizAnswers");
-          alert("Your session has expired. Please login again.");
-          navigate("/");
-          return;
-        }
-        // If duplicate submission (UNIQUE constraint)
-        if (
-          error.response?.status === 500 &&
-          error.response?.data?.includes?.("UNIQUE")
-        ) {
-          console.error("Quiz already submitted");
-          alert(
-            "You have already submitted this quiz. You cannot submit twice.",
-          );
-          navigate("/dashboard");
-          return;
-        }
-        throw error;
-      }
-    } catch (error) {
-      console.error("Submit error:", error);
-      console.error("Error response:", error.response?.data);
-      console.error("Error status:", error.response?.status);
-      alert(
-        "Error submitting quiz: " +
-          (error.response?.data?.detail ||
-            error.response?.data?.message ||
-            error.message),
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const question = questions[currentQuestion];
 
-  if (loading) {
+  if (loading || timeLeft == null) {
     return (
       <div className="h-screen bg-[#171717] flex justify-center items-center">
         <div className="text-center">
@@ -305,6 +302,7 @@ const Quiz = () => {
       </div>
     );
   }
+
   return (
     <div className="h-screen w-ful bg-[#171717] flex justify-center items-center gap-[3vh] py-[5vh]">
       <div className="h-full w-1/5 bg-[#0a0a0a] rounded-[2vh] flex flex-col justify-around items-center">
@@ -320,75 +318,77 @@ const Quiz = () => {
         </h3>
       </div>
       <div className="h-full w-3/5 flex flex-col items-center gap-[5vh]">
-        <h2 className="text-[3vh] font-lato font-extrabold tracking-[0.5vh] ">
+        <h2 className="text-3xl font-lato font-extrabold tracking-[0.5vh] ">
           Question {currentQuestion + 1} of {questions.length}
         </h2>
         <div className="h-[0.5vh] w-[35vh] bg-linear-to-r from-transparent via-[#ff4000] to-transparent mt-[-4vh]" />
-        <div className="bg-[#0a0a0a] min-h-[45vh] overflow-y-auto w-[90vh] py-[5vh] px-[3vh] flex flex-col justify-between rounded-[1vh] shadow-2xl">
-          <h1 className="text-[3vh] font-bold mb-4">
-            {question.question_text.split("|")[0]}
-          </h1>
+        {question && (
+          <div className="bg-[#0a0a0a] min-h-[45vh] overflow-y-auto w-[90vh] py-[5vh] px-[3vh] flex flex-col justify-between rounded-[1vh] shadow-2xl">
+            <h1 className="text-[3vh] font-bold mb-4">
+              {question.question_text.split("|")[0]}
+            </h1>
 
-          <pre className="font-mono whitespace-pre-wrap text-[2.2vh]">
-            {question.question_text.split("|").slice(1).join("\n")}
-          </pre>
-          <div className="flex flex-col text-[2.3vh] font-light">
-            <label className="cursor-pointer hover:scale-101 transition-all text-[2.2vh]">
-              <input
-                type="radio"
-                checked={answers[question.id] === "A"}
-                onChange={() => handleOptionSelect(question.id, "A")}
-              />
-              {question.option_a}
-            </label>
+            <pre className="font-mono whitespace-pre-wrap text-[2.2vh]">
+              {question.question_text.split("|").slice(1).join("\n")}
+            </pre>
+            <div className="flex flex-col text-[2.3vh] font-light">
+              <label className="cursor-pointer hover:scale-101 transition-all text-[2.2vh]">
+                <input
+                  type="radio"
+                  checked={answers[question.id] === "A"}
+                  onChange={() => handleOptionSelect(question.id, "A")}
+                />
+                {question.option_a}
+              </label>
 
+              <br />
+
+              <label className="cursor-pointer hover:scale-101 transition-all text-[2.2vh]">
+                <input
+                  type="radio"
+                  checked={answers[question.id] === "B"}
+                  onChange={() => handleOptionSelect(question.id, "B")}
+                />
+                {question.option_b}
+              </label>
+
+              <br />
+
+              <label className="cursor-pointer hover:scale-101 transition-all text-[2.2vh]">
+                <input
+                  type="radio"
+                  checked={answers[question.id] === "C"}
+                  onChange={() => handleOptionSelect(question.id, "C")}
+                />
+                {question.option_c}
+              </label>
+
+              <br />
+
+              <label className="cursor-pointer hover:scale-101 transition-all text-[2.2vh]">
+                <input
+                  type="radio"
+                  checked={answers[question.id] === "D"}
+                  onChange={() => handleOptionSelect(question.id, "D")}
+                />
+                {question.option_d}
+              </label>
+            </div>
             <br />
-
-            <label className="cursor-pointer hover:scale-101 transition-all text-[2.2vh]">
-              <input
-                type="radio"
-                checked={answers[question.id] === "B"}
-                onChange={() => handleOptionSelect(question.id, "B")}
-              />
-              {question.option_b}
-            </label>
-
-            <br />
-
-            <label className="cursor-pointer hover:scale-101 transition-all text-[2.2vh]">
-              <input
-                type="radio"
-                checked={answers[question.id] === "C"}
-                onChange={() => handleOptionSelect(question.id, "C")}
-              />
-              {question.option_c}
-            </label>
-
-            <br />
-
-            <label className="cursor-pointer hover:scale-101 transition-all text-[2.2vh]">
-              <input
-                type="radio"
-                checked={answers[question.id] === "D"}
-                onChange={() => handleOptionSelect(question.id, "D")}
-              />
-              {question.option_d}
-            </label>
           </div>
-          <br />
-        </div>
+        )}
         <div className="w-[50vh] h-[7vh] flex justify-center gap-[10vh] text-[3vh] font-lato font-bold">
           <button
             className="bg-[#34a9ec] w-[30vh] px-[3vh] rounded-[1vh] cursor-pointer "
             onClick={handlePrevious}
           >
-            <i class="ri-arrow-left-line"></i> Previous
+            <i className="ri-arrow-left-line"></i> Previous
           </button>
           <button
             className="bg-[#32ce21] w-[20vh] px-[3vh] rounded-[1vh] cursor-pointer "
             onClick={handleNext}
           >
-            Next <i class="ri-arrow-right-line"></i>
+            Next <i className="ri-arrow-right-line"></i>
           </button>
         </div>
         <button
@@ -418,7 +418,38 @@ const Quiz = () => {
           ))}
         </div>
       </div>
-      {showFullscreenModal && (
+
+      {showReloadModal && (
+        <div className="fixed inset-0 bg-black/90 flex justify-center items-center z-[10001]">
+          <div className="bg-[#111] p-8 rounded-xl w-[480px] text-center border border-[#ff4000]">
+            <h2 className="text-3xl font-bold text-[#ff4000] mb-4">Reload Page?</h2>
+            <p className="mb-4 text-gray-300">
+              Your quiz timer will continue from the remaining time. Your saved
+              answers will be kept.
+            </p>
+            <p className="mb-6 text-gray-400 text-sm">
+              Use this only if the page is not working correctly. Do not close
+              the tab.
+            </p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => setShowReloadModal(false)}
+                className="bg-gray-600 px-6 py-3 rounded-lg font-semibold cursor-pointer"
+              >
+                Stay on Quiz
+              </button>
+              <button
+                onClick={handleConfirmReload}
+                className="bg-[#ff4000] text-black px-6 py-3 rounded-lg font-semibold cursor-pointer"
+              >
+                Reload Page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFullscreenModal && !showReloadModal && (
         <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-[9999]">
           <div className="bg-[#111] p-8 rounded-xl w-[450px] text-center border border-[#ff4000]">
             <h2 className="text-3xl font-bold text-[#ff4000] mb-4">
@@ -433,13 +464,12 @@ const Quiz = () => {
             <p className="mb-2 text-red-400 font-bold">Warning {warnings}/3</p>
 
             <p className="mb-6 text-gray-300">
-              You exited fullscreen mode. After 3 violations your quiz will be
-              automatically submitted.
+              After 3 violations your quiz will be automatically submitted.
             </p>
 
             <button
               onClick={reEnterFullscreen}
-              className="bg-[#ff4000] px-6 py-3 rounded-lg font-bold"
+              className="bg-[#ff4000] px-6 py-3 rounded-lg font-bold cursor-pointer"
             >
               Re-enter Fullscreen
             </button>
@@ -458,7 +488,7 @@ const Quiz = () => {
 
             <div className="flex justify-center gap-4">
               <button
-                className="bg-gray-600 px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gray-600 px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 onClick={() => setShowSubmitModal(false)}
                 disabled={isSubmitting}
               >
@@ -466,10 +496,8 @@ const Quiz = () => {
               </button>
 
               <button
-                className="bg-red-600 px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => {
-                  handleSubmit();
-                }}
+                className="bg-red-600 px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                onClick={() => handleSubmit()}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Submitting..." : "Submit"}
@@ -478,6 +506,7 @@ const Quiz = () => {
           </div>
         </div>
       )}
+
       {showViolationModal && (
         <div className="fixed inset-0 bg-black/90 flex justify-center items-center z-[10000]">
           <div className="bg-[#111] border border-red-600 p-8 rounded-xl w-[500px] text-center">

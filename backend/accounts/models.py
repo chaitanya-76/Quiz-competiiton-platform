@@ -59,6 +59,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     violation_count = models.IntegerField(default=0)
 
+    quiz_started_at = models.DateTimeField(null=True, blank=True)
+
     is_staff = models.BooleanField(default=False)
 
     is_admin_user = models.BooleanField(default=False)

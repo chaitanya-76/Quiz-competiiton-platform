@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
 from django.db.models import Avg, Max
 from .models import Question
 from .serializers import QuestionSerializer
@@ -196,14 +197,34 @@ class ExportResultsView(APIView):
 
         return response
     
+QUIZ_DURATION_SECONDS = 60 * 60
+
+
 class QuizStatusView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        user = request.user
+
+        if user.is_attempted:
+            return Response({
+                "attempted": True,
+                "seconds_remaining": 0,
+                "violations": user.violation_count,
+            })
+
+        if user.quiz_started_at is None:
+            user.quiz_started_at = timezone.now()
+            user.save(update_fields=["quiz_started_at"])
+
+        elapsed = (timezone.now() - user.quiz_started_at).total_seconds()
+        seconds_remaining = max(0, int(QUIZ_DURATION_SECONDS - elapsed))
 
         return Response({
-            "attempted": request.user.is_attempted
+            "attempted": False,
+            "seconds_remaining": seconds_remaining,
+            "violations": user.violation_count,
         })
         
 class AdminStatsView(APIView):
