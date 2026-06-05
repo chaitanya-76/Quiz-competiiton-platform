@@ -22,6 +22,19 @@ class LoginView(APIView):
             enrollment_no = serializer.validated_data["enrollment_no"].strip().upper()
             password = serializer.validated_data["password"]
 
+            from accounts.db_setup import repair_quiz_started_at_column
+
+            if not repair_quiz_started_at_column():
+                return Response(
+                    {
+                        "error": (
+                            "Database is still updating. Wait one minute, redeploy the "
+                            "backend, or open /api/setup/?secret=YOUR_SETUP_SECRET."
+                        )
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
             try:
                 user = authenticate(
                     enrollment_no=enrollment_no,

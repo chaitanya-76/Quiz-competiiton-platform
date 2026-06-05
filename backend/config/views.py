@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.db_setup import accounts_schema_ready, ensure_database
+from accounts.db_setup import accounts_schema_ready, ensure_database, repair_quiz_started_at_column
 from accounts.models import User
 
 
@@ -78,6 +78,7 @@ class SetupView(APIView):
         if not ok:
             return Response({"error": error}, status=403)
 
+        repair_quiz_started_at_column()
         result = ensure_database()
         status_code = 200 if result["status"] == "ok" else 503
         return Response(result, status=status_code)
@@ -87,6 +88,7 @@ class SetupView(APIView):
         if not ok:
             return Response({"error": error}, status=403)
 
+        repair_quiz_started_at_column()
         result = ensure_database()
         if result["status"] != "ok":
             return Response(result, status=503)
