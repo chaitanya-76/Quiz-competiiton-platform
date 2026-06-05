@@ -6,6 +6,7 @@ import DinoRunner from "../components/DinoRunner";
 import { loginUser } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 import Background from "../backgrounds/Background";
+import "remixicon/fonts/remixicon.css";
 // import AnimatedButton from "./components/AnimatedButton";
 
 const CORRECT_ID = "260593";
@@ -216,13 +217,27 @@ export default function Login() {
                   <h1 className="font-bold text-[#f0f0f0] text-[2.5vh]">
                     Password <span className="text-[#ff6b35]">*</span>
                   </h1>
-                  <input
-                    className="border-[0.3vh] h-[5vh] text-[2vh] text-[#ffffff] placeholder-[#888888] bg-[#2a2a2a] border-[#ff6b35] border-opacity-40 w-full px-[2vh] rounded-[0.8vh] focus:outline-none focus:border-[#ff6b35] focus:border-opacity-100 focus:shadow-lg focus:shadow-[rgba(255,107,53,0.3)] transition-all"
-                    type="password"
-                    placeholder="Password will be shared by volunteers"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="relative">
+                    <input
+                      className="border-[0.3vh] h-[5vh] text-[2vh] text-[#ffffff] placeholder-[#888888] bg-[#2a2a2a] border-[#ff6b35] border-opacity-40 w-full pl-[2vh] pr-[6vh] rounded-[0.8vh] focus:outline-none focus:border-[#ff6b35] focus:border-opacity-100 focus:shadow-lg focus:shadow-[rgba(255,107,53,0.3)] transition-all"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password will be shared by volunteers"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-[1.5vh] top-1/2 -translate-y-1/2 text-[#888888] hover:text-[#ff6b35] transition-colors cursor-pointer text-[2.4vh] leading-none"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      <i
+                        className={
+                          showPassword ? "ri-eye-off-line" : "ri-eye-line"
+                        }
+                      />
+                    </button>
+                  </div>
                 </div>
                 <button
                   onClick={handleLogin}
