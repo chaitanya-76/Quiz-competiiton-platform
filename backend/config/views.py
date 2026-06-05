@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.db_setup import ensure_database
+from accounts.db_setup import accounts_schema_ready, ensure_database
 from accounts.models import User
 
 
@@ -32,12 +32,23 @@ class HealthView(APIView):
             if app in ("accounts", "quiz", "auth", "admin", "contenttypes", "sessions")
         }
 
+        result["schema_ready"] = accounts_schema_ready()
+
         try:
+            User.objects.values("id").first()
             result["accounts_user"] = "ok"
             result["user_count"] = User.objects.count()
         except Exception as exc:
             result["status"] = "error"
             result["accounts_user"] = str(exc)
+            return Response(result, status=503)
+
+        if not result["schema_ready"]:
+            result["status"] = "error"
+            result["accounts_user"] = (
+                "Missing quiz_started_at column — redeploy backend or open "
+                "/api/setup/?secret=YOUR_SETUP_SECRET to run migrations."
+            )
             return Response(result, status=503)
 
         return Response(result)

@@ -27,9 +27,15 @@ class LoginView(APIView):
                     enrollment_no=enrollment_no,
                     password=password
                 )
-            except DatabaseError:
+            except DatabaseError as exc:
                 return Response(
-                    {"error": "Database unavailable. Check migrations and DATABASE_URL."},
+                    {
+                        "error": (
+                            "Database schema is out of date. Redeploy the backend or "
+                            "run /api/setup/ to apply migrations. "
+                            f"Detail: {exc}"
+                        )
+                    },
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
 
